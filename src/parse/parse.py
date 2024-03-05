@@ -20,7 +20,7 @@ class CommandParser:
         cmd.run(args)
         
 
-def parse():
+def main():
     parser = CommandParser({
         "create": Create,
         "stage": Stage,
