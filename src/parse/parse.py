@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from typing import Dict
 
-from commands import Command, Create, Stage
+from .commands import Command, Create, Stage
 
 
 class CommandParser:
@@ -20,14 +20,9 @@ class CommandParser:
         cmd.run(args)
         
 
-def main():
+def parse():
     parser = CommandParser({
         "create": Create,
         "stage": Stage,
     })
     parser.parse_args()
-
-
-# Checks if file is run directly
-if __name__ == "__main__":
-    main()
