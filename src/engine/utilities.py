@@ -10,7 +10,7 @@ def create_schema(path: str, name: str) -> int:
         name (str): file name. E.g., mydata`
 
     Returns:
-        int: returns an exit code.
+        int: 0: file created successfully; 1: file already exists; -1 error creating file.
     """
     if os.path.exists(path+name):
         return 1
@@ -31,13 +31,22 @@ def drop_schema(path: str, name: str) -> int:
         name (str): file name. E.g., mydata`
 
     Returns:
-        int: 0: file deleted successfully; 1: file not found; -1: error deleting file
+        int: 0: file deleted successfully; 1: file not found; 2: aborted; -1: error deleting file
     """
     if os.path.exists(path+name):
-        try:
-            os.remove(path+name)
-            return 0
-        except:
-            return -1
+        # Confirms user wants to delete file
+        while True:
+            confirm = input(f"Are you sure you want to drop {name}? [y/n]\n")
+            if confirm:        
+                if confirm.lower()[0] == "y" or confirm.lower()[0] == "n":
+                    break
+        if confirm == 'y':
+            try:
+                os.remove(path+name)
+                return 0
+            except:
+                return -1
+        elif confirm == 'n':
+            return 2
     else:
         return 1

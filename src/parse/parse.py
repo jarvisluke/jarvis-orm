@@ -5,7 +5,7 @@ from .commands import *
 
 
 class CommandParser:
-    """Parses command line and executes appropriate commands"""
+    """Parses input and executes appropriate commands"""
     def __init__(self, cmds: Dict[str, Command]) -> None:
         self.parser = ArgumentParser()
         self.subp = self.parser.add_subparsers(dest="cmd")
@@ -21,9 +21,10 @@ class CommandParser:
         
 
 def main():
-    parser = CommandParser({
+    subp = {
         "create": Create,
         "drop": Drop,
         "stage": Stage,
-    })
+    }
+    parser = CommandParser(subp)
     parser.parse_args()

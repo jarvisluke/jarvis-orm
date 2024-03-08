@@ -55,6 +55,8 @@ class Drop(Command):
                 print(f"Dropped {name} at {path}")
             case 1:
                 print(f"[!] {name} does not exists at {path}")
+            case 2:
+                print(f"[!] Aborted drop")
             case -1:
                 print(f"[!] Error dropping {name} at {path}")
         
