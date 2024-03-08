@@ -38,11 +38,11 @@ class Create(Command):
                 print(f"[!] Error creating {name} at {path}")
                 
                 
-                
 class Drop(Command):
     def __init__(self, subp) -> None:
         create_subp = subp.add_parser("drop")
         create_subp.add_argument("name", type=str)
+        # TODO: add optional -y parameter
         
     def run(self, args) -> None:
         name = args.name
