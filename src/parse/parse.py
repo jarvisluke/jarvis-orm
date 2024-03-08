@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from typing import Dict
 
-from .commands import Command, Create, Stage
+from .commands import *
 
 
 class CommandParser:
@@ -23,6 +23,7 @@ class CommandParser:
 def main():
     parser = CommandParser({
         "create": Create,
+        "drop": Drop,
         "stage": Stage,
     })
     parser.parse_args()
