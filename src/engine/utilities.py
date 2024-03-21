@@ -44,7 +44,7 @@ def drop_schema(path: str, name: str) -> int:
             try:
                 os.remove(path+name)
                 return 0
-            except:
+            except OSError:
                 return -1
         elif confirm == 'n':
             return 2
