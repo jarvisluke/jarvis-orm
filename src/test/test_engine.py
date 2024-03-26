@@ -2,9 +2,13 @@ import unittest
 import os
 
 from engine import utilities
+from engine import serializer
+from schema import model
 
 
 class TestUtilities(unittest.TestCase):
+    one=model.Field()
+    two=model.Field()
     """Tests the engine.utilities module"""
     def setUp(self):
         self.path = os.getcwd()+"\\"
@@ -36,6 +40,20 @@ class TestUtilities(unittest.TestCase):
         # Test deleting a non-existing file
         v = utilities.drop_schema(self.path, self.filename)
         self.assertEqual(v, 1)
+        
+        
+class TestSerializer(unittest.TestCase):
+    def test_build_query(self):
+        obj = None # temp
+        v = serializer.build_query(obj)
+        # Test that returned value is string
+        self.assertIsInstance(v, str)
+
+    def test_build_object(self):
+        s = "None"
+        v = serializer.build_object(s)
+        # Test that returned value is model
+        self.assertIsInstance(v, model.Model)
             
         
 # Update with all test cases to be run
