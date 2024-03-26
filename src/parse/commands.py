@@ -1,6 +1,3 @@
-import sys
-sys.path.append("..")
-
 import os
 
 from engine import utilities
@@ -48,6 +45,15 @@ class Drop(Command):
         name = args.name
         if not name.endswith(".db"):
             name += ".db"
+        # Checks user input
+        while True:
+            confirm = input(f"Are you sure you want to drop {name}? [y/n]\n")
+            if confirm:        
+                if confirm.lower()[0] == "y":
+                    break
+                elif confirm.lower()[0] == "n":
+                    print(f"[!] Aborted drop")
+                    return
         path = os.getcwd() + "\\"
         val = utilities.drop_schema(path, name)
         match val:
@@ -55,8 +61,6 @@ class Drop(Command):
                 print(f"Dropped {name} at {path}")
             case 1:
                 print(f"[!] {name} does not exists at {path}")
-            case 2:
-                print(f"[!] Aborted drop")
             case -1:
                 print(f"[!] Error dropping {name} at {path}")
         
