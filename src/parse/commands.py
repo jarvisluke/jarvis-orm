@@ -31,11 +31,11 @@ class Create(Command):
         stdout.write(Style.BRIGHT)
         match val:
             case 0:
-                print(f"{Fore.GREEN}Created {Fore.WHITE}{name}{Fore.GREEN} at {path}")
+                print(f"{Fore.GREEN}Created {Fore.WHITE}{name}{Fore.GREEN} at {Fore.WHITE}{path}")
             case 1:
-                print(f"{Fore.RED}[!] {Fore.WHITE}{name}{Fore.RED} already exists at {path}")
+                print(f"{Fore.RED}[!] {Fore.WHITE}{name}{Fore.RED} already exists at {Fore.WHITE}{path}")
             case -1:
-                print(f"{Fore.RED}[!] Error creating {Fore.WHITE}{name}{Fore.RED} at {path}")
+                print(f"{Fore.RED}[!] Error creating {Fore.WHITE}{name}{Fore.RED} at {Fore.WHITE}{path}")
         stdout.write(Style.RESET_ALL)
                 
                 
@@ -63,11 +63,11 @@ class Drop(Command):
         val = utilities.drop_schema(path, name)
         match val:
             case 0:
-                print(f"{Fore.GREEN}Dropped {Fore.WHITE}{name}{Fore.GREEN} at {path}")
+                print(f"{Fore.GREEN}Dropped {Fore.WHITE}{name}{Fore.GREEN} at {Fore.WHITE}{path}")
             case 1:
-                print(f"{Fore.RED}[!] {Fore.WHITE}{name}{Fore.RED} does not exists at {path}")
+                print(f"{Fore.RED}[!] {Fore.WHITE}{name}{Fore.RED} does not exists at {Fore.WHITE}{path}")
             case -1:
-                print(f"{Fore.RED}[!] Error dropping {Fore.WHITE}{name}{Fore.RED} at {path}")
+                print(f"{Fore.RED}[!] Error dropping {Fore.WHITE}{name}{Fore.RED} at {Fore.WHITE}{path}")
         stdout.write(Style.RESET_ALL)
         
         
