@@ -1,4 +1,6 @@
 import os
+from sys import stdout
+from colorama import Fore, Back, Style
 
 from engine import utilities
 
@@ -26,13 +28,15 @@ class Create(Command):
             name += ".db"
         path = os.getcwd() + "\\"
         val = utilities.create_schema(path, name)
+        stdout.write(Style.BRIGHT)
         match val:
             case 0:
-                print(f"Created {name} at {path}")
+                print(f"{Fore.GREEN}Created {name} at {path}")
             case 1:
-                print(f"[!] {name} already exists at {path}")
+                print(f"{Fore.RED}[!] {name} already exists at {path}")
             case -1:
-                print(f"[!] Error creating {name} at {path}")
+                print(f"{Fore.RED}[!] Error creating {name} at {path}")
+        stdout.write(Style.RESET_ALL)
                 
                 
 class Drop(Command):
@@ -46,23 +50,25 @@ class Drop(Command):
         if not name.endswith(".db"):
             name += ".db"
         # Checks user input
+        stdout.write(Style.BRIGHT)
         while True:
             confirm = input(f"Are you sure you want to drop {name}? [y/n]\n")
             if confirm:        
                 if confirm.lower()[0] == "y":
                     break
                 elif confirm.lower()[0] == "n":
-                    print(f"[!] Aborted drop")
+                    print(f"{Fore.RED}[!] Aborted drop")
                     return
         path = os.getcwd() + "\\"
         val = utilities.drop_schema(path, name)
         match val:
             case 0:
-                print(f"Dropped {name} at {path}")
+                print(f"{Fore.GREEN}Dropped {name} at {path}")
             case 1:
-                print(f"[!] {name} does not exists at {path}")
+                print(f"{Fore.RED}[!] {name} does not exists at {path}")
             case -1:
-                print(f"[!] Error dropping {name} at {path}")
+                print(f"{Fore.RED}[!] Error dropping {name} at {path}")
+        stdout.write(Style.RESET_ALL)
         
         
 class Stage(Command):

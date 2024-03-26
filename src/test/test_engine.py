@@ -38,6 +38,7 @@ class TestUtilities(unittest.TestCase):
         self.assertEqual(v, 1)
             
         
+# Update with all test cases to be run
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(TestUtilities("test_create_schema"))

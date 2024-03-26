@@ -20,7 +20,7 @@ class CommandParser:
         cmd.run(args)
         
 
-def main():
+def parse():
     subp = {
         "create": Create,
         "drop": Drop,
