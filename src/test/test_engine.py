@@ -1,9 +1,7 @@
 import unittest
-import sys
 import os
 
-sys.path.append("..")
-from src.engine import utilities
+from engine import utilities
 
 
 class TestUtilities(unittest.TestCase):
