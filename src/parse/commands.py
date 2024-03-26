@@ -52,7 +52,7 @@ class Drop(Command):
         # Checks user input
         stdout.write(Style.BRIGHT)
         while True:
-            confirm = input(f"{Fore.RED}Are you sure you want to drop {Fore.WHITE}{name}{Fore.RED}? [y/n]\n")
+            confirm = input(f"Are you sure you want to drop {name}? [y/n]\n")
             if confirm:        
                 if confirm.lower()[0] == "y":
                     break
