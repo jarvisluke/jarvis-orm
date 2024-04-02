@@ -1,8 +1,9 @@
 import os
 from sys import stdout
 from colorama import Fore, Back, Style
+import sqlite3
 
-from engine import utilities
+from ..engine import utilities
 
 
 class Command:
@@ -78,3 +79,41 @@ class Stage(Command):
         
     def run(self, args) -> None:
         print(f'Staging changes on database: {args.schema}')
+        
+        
+class Tables(Command):
+    def __init__(self, subp) -> None:
+        tables_subp = subp.add_parser("tables")
+        tables_subp.add_argument("schema", type=str)
+        
+    def run(self, args) -> None:
+        conn = sqlite3.connect(args.schema)
+        cursor = conn.cursor()
+
+        # Query to fetch all table names
+        table = """ CREATE TABLE GEEK (
+            Email VARCHAR(255) NOT NULL,
+            First_Name CHAR(25) NOT NULL,
+            Last_Name CHAR(25),
+            Score INT
+        ); """
+ 
+        cursor.execute(table)
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+
+        # Fetch all results
+        tables = cursor.fetchall()
+
+        # Close the connection
+        conn.close()
+
+        print(tables)
+        
+        
+# Add commands here
+subprocessors =  {
+    "create": Create,
+    "drop": Drop,
+    "stage": Stage,
+    "tables": Tables,
+}

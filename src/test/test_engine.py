@@ -7,8 +7,6 @@ from schema import model
 
 
 class TestUtilities(unittest.TestCase):
-    one=model.Field()
-    two=model.Field()
     """Tests the engine.utilities module"""
     def setUp(self):
         self.path = os.getcwd()+"\\"

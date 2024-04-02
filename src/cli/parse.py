@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from typing import Dict
 
-from .commands import *
+from .commands import Command, subprocessors
 
 
 class CommandParser:
@@ -21,10 +21,5 @@ class CommandParser:
         
 
 def parse():
-    subp = {
-        "create": Create,
-        "drop": Drop,
-        "stage": Stage,
-    }
-    parser = CommandParser(subp)
+    parser = CommandParser(subprocessors)
     parser.parse_args()
