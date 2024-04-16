@@ -2,7 +2,7 @@ import unittest
 import os
 
 from engine import utilities
-from engine import serializer
+from orm.src.engine import sql
 from schema import model
 
 
@@ -43,13 +43,13 @@ class TestUtilities(unittest.TestCase):
 class TestSerializer(unittest.TestCase):
     def test_build_query(self):
         obj = None # temp
-        v = serializer.build_query(obj)
+        v = sql.build_query(obj)
         # Test that returned value is string
         self.assertIsInstance(v, str)
 
     def test_build_object(self):
         s = "None"
-        v = serializer.build_object(s)
+        v = sql.build_object(s)
         # Test that returned value is model
         self.assertIsInstance(v, model.Model)
             

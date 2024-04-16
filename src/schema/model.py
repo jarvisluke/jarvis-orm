@@ -1,50 +1,77 @@
-import enum
+from enum import Enum
+from types import NoneType
+from typing import List
 
 
-class Affinity(enum.Enum):
-    NONE = "NONE"
-    INTEGER = "INTEGER"
-    TEXT = "TEXT"
-    BLOB = "BLOB"
-    REAL = "REAL"
+class Affinity(Enum):
+    NONE = (NoneType,)
+    INTEGER = (int,)
+    TEXT = (str,)
+    BLOB = (bytes, bytearray, memoryview)
+    REAL = (float,)
 
 
 class Field:
     affinity = Affinity.NONE
     
-    def __init__(self, NOT_NULL=False, DEFAULT=None, UNIQUE=False, PRIMARY_KEY=False) -> None:
-        self.NOT_NULL = NOT_NULL
-        self.DEFAULT = DEFAULT
-        self.UNIQUE = UNIQUE
-        self.PRIMARY_KEY = PRIMARY_KEY
-        self.value = self.DEFAULT
-        
-        
+    def __init__(self, not_null=True, default=None, unique=False, primary_key=False) -> None:
+        self.not_null = not_null
+        self.default = default
+        self.unqiue = unique
+        self.primary_key = primary_key
+        self.value = self.default
+
+    def __repr__(self):
+        return str(self.value)
+    
+    def set_value(self, value):
+        # Checks the type of the value is supported by the Field subclass' affinity
+        if (t := type(value)) not in self.affinity.value:
+            raise TypeError(f"Unsupported type '{t}' for affinity {self.affinity}")
+        self.value = value
+    
+    
 class IntegerField(Field):
     affinity = Affinity.INTEGER
-        
+
     
 class TextField(Field):
     affinity = Affinity.TEXT
 
     
-class RealField(Field):
-    affinity = Affinity.REAL
-    
-    
 class BlobField(Field):
     affinity = Affinity.BLOB
     
-
-class Model:
+    
+class RealField(Field):
+    affinity = Affinity.REAL
+            
+        
+class Table:
     def __init__(self, **kwargs) -> None:
-        # Sets values of Field attributes to corresponding item in values
         fields = self._get_fields()
-        for k, v in kwargs:
-            fields[k].value = v
+        
+        # Checks if any values in kwargs are not attributes of type Field
+        if (diff := len(fields) - len(kwargs.keys())):
+            mismatch = fields - kwargs.keys()
+            if diff > 1:
+                raise ValueError(f"Unexpected keyword arguments {mismatch}")
+            else:
+                raise TypeError(f"__init__() missing {diff} required keyword arguments: {mismatch}")
+        
+        # Initializes value attribute of each attribute of type Field 
+        for k, v in kwargs.items():
+            if k in fields:
+                attr = getattr(self, k)
+                attr.set_value(v)
             
     
-    def _get_fields(cls):
-        attrs = cls.__dict__
-        # Returns all attributes of the class which are an instance of Field
-        return {k: v for (k, v) in attrs.items() if isinstance(v, Field)}
+    def _get_fields(self) -> List[Field]:
+        attrs = self.__class__.__dict__
+        fields = []
+        
+        for k, v in attrs.items():
+            if isinstance(v, Field):
+                fields.append(k)
+                
+        return fields
