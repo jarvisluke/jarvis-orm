@@ -78,17 +78,6 @@ class Table:
                 attr = getattr(self, k)
                 attr.set_value(v)
     
-    @classmethod
-    def _get_fields_cls(cls) -> List[Field]:
-        attrs = cls.__dict__
-        fields = []
-        
-        for k, v in attrs.items():
-            if isinstance(v, Field):
-                fields.append(k)
-                
-        return fields
-    
     def _get_fields(self) -> List[Field]:
         attrs = self.__class__.__dict__
         fields = []
@@ -101,8 +90,30 @@ class Table:
         return fields
     
     @classmethod
+    def _get_fields_cls(cls) -> List[Field]:
+        attrs = cls.__dict__
+        fields = []
+        
+        for k, v in attrs.items():
+            if isinstance(v, Field):
+                fields.append(k)
+                
+        return fields
+    
+    def get_primary_key(self) -> str:
+        for field in self._get_fields():
+            if getattr(self, field).primary_key:
+                return field
+            
+    @classmethod
+    def get_primary_key_cls(cls) -> str:
+        for field in cls._get_fields_cls():
+            obj = getattr(cls, field)
+            if isinstance(obj, Field) and obj.primary_key:
+                return field
+    
+    @classmethod
     def get_create_query(cls) -> tuple[str | tuple]:
-        q = "CREATE TABLE ? (?);"
         name = cls.__name__.lower()
         
         # Iterates through each field, building a string containing its name, affinity, and options
@@ -118,10 +129,9 @@ class Table:
         # Removes the last element's comma
         fields[-1] = fields[-1][:-1]
         
-        return (q, (name, ", ".join(fields)))
+        return f"CREATE TABLE {name} ({", ".join(fields)});"
         
     def get_insert_query(self) -> tuple[str | tuple]:
-        q = "INSERT INTO ? (?) VALUES (?);"
         name = self.__class__.__name__.lower()
         
         # Lists names of all fields whose value is not None
@@ -136,4 +146,36 @@ class Table:
             if getattr(self, fields[i]).affinity == Affinity.TEXT:
                 values[i] = '"' + values[i] + '"'
                 
-        return (q, (name, ", ".join(fields), ", ".join(values)))
+        return f"INSERT INTO {name} ({", ".join(fields)}) VALUES ({", ".join(values)});"
+    
+    def get_update_string(self) -> tuple[str | tuple]:
+        name = self.__class__.__name__.lower()
+        
+        # Lists names of all fields whose value is not None
+        fields = [f for f in self._get_fields()]
+        fields = [f for f in fields if getattr(self, f).value]
+        
+        # Lists values of all fields
+        values = [str(getattr(self, f).value) for f in fields]
+        
+        # Adds quotation marks around values of fields with text affinities
+        for i in range(len(values)):
+            if getattr(self, fields[i]).affinity == Affinity.TEXT:
+                values[i] = '"' + values[i] + '"'
+                
+        # Builds field = value statements
+        set_fields = []
+        for t in zip(fields, values):
+            set_fields.append(t[0] + " = " + t[1])
+            
+        # Build pk = pk statement
+        pk = self.get_primary_key()
+        pk = pk + " = " + getattr(self, pk).value
+                
+        return (f"UPDATE {name} SET {", ".join(set_fields)} WHERE {pk};",)
+    
+    def save(self, t):
+        if t.exists(self):
+            t.update(self)
+        else:
+            t.insert(self)
