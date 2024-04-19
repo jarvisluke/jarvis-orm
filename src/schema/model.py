@@ -59,7 +59,7 @@ class RealField(Field):
         
 class Table:
     def __init__(self, **kwargs) -> None:
-        fields = self._get_fields()
+        fields = self.get_fields()
         keys = list(kwargs.keys())
         
         # Checks if any values in kwargs are not attributes of type Field
@@ -78,7 +78,7 @@ class Table:
                 attr = getattr(self, k)
                 attr.set_value(v)
     
-    def _get_fields(self) -> List[Field]:
+    def get_fields(self) -> List[Field]:
         attrs = self.__class__.__dict__
         fields = []
         
@@ -90,7 +90,7 @@ class Table:
         return fields
     
     @classmethod
-    def _get_fields_cls(cls) -> List[Field]:
+    def get_fields_cls(cls) -> List[Field]:
         attrs = cls.__dict__
         fields = []
         
@@ -101,13 +101,13 @@ class Table:
         return fields
     
     def get_primary_key(self) -> str:
-        for field in self._get_fields():
+        for field in self.get_fields():
             if getattr(self, field).primary_key:
                 return field
             
     @classmethod
     def get_primary_key_cls(cls) -> str:
-        for field in cls._get_fields_cls():
+        for field in cls.get_fields_cls():
             obj = getattr(cls, field)
             if isinstance(obj, Field) and obj.primary_key:
                 return field
@@ -118,7 +118,7 @@ class Table:
         
         # Iterates through each field, building a string containing its name, affinity, and options
         fields = []
-        for field in cls._get_fields_cls():
+        for field in cls.get_fields_cls():
             options = getattr(cls, field).get_options_string()
             s = ""
             for o in options:
@@ -129,13 +129,13 @@ class Table:
         # Removes the last element's comma
         fields[-1] = fields[-1][:-1]
         
-        return f"CREATE TABLE {name} ({", ".join(fields)});"
+        return f"CREATE TABLE {name} ({', '.join(fields)});"
         
     def get_insert_query(self) -> tuple[str | tuple]:
         name = self.__class__.__name__.lower()
         
         # Lists names of all fields whose value is not None
-        fields = [f for f in self._get_fields()]
+        fields = [f for f in self.get_fields()]
         fields = [f for f in fields if getattr(self, f).value]
         
         # Lists values of all fields
@@ -146,13 +146,13 @@ class Table:
             if getattr(self, fields[i]).affinity == Affinity.TEXT:
                 values[i] = '"' + values[i] + '"'
                 
-        return f"INSERT INTO {name} ({", ".join(fields)}) VALUES ({", ".join(values)});"
+        return f"INSERT INTO {name} ({', '.join(fields)}) VALUES ({', '.join(values)});"
     
-    def get_update_string(self) -> tuple[str | tuple]:
+    def get_update_query(self) -> tuple[str | tuple]:
         name = self.__class__.__name__.lower()
         
         # Lists names of all fields whose value is not None
-        fields = [f for f in self._get_fields()]
+        fields = [f for f in self.get_fields()]
         fields = [f for f in fields if getattr(self, f).value]
         
         # Lists values of all fields
@@ -172,7 +172,7 @@ class Table:
         pk = self.get_primary_key()
         pk = pk + " = " + getattr(self, pk).value
                 
-        return (f"UPDATE {name} SET {", ".join(set_fields)} WHERE {pk};",)
+        return f"UPDATE {name} SET {', '.join(set_fields)} WHERE {pk};"
     
     def save(self, t):
         if t.exists(self):
