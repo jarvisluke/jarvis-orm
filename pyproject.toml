@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jarvis-orm"
+version = "0.0.1"
+requires-python = ">=3.10"
+authors = [
+  {name = "Luke Jarvis", email = "jarvislukeldj@gmail.com"},
+]
+maintainers = [
+  {name = "Luke Jarvis", email = "jarvislukeldj@gmail.com"}
+]
+description = "Python Object-Relational Mapping"
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["orm", "sql", "sqlite", "sqlite3"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+
+[project.urls]
+
+Homepage = "https://github.com/jarvisluke/jarvis-orm"
+Repository = "https://github.com/jarvisluke/jarvis-orm.git"
+"Bug Tracker" = "https://github.com/jarvisluke/jarvis-orm/issues"
+Changelog = "https://github.com/me/jarvis-orm/blob/master/CHANGELOG.md"

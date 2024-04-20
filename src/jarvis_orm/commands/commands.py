@@ -1,9 +1,7 @@
 import os
-from sys import stdout
-from colorama import Fore, Back, Style
 import sqlite3
 
-from ..engine import utilities
+from ..core.utilities import create_schema, drop_schema
 
 
 class Command:
@@ -28,16 +26,14 @@ class Create(Command):
         if not name.endswith(".db"):
             name += ".db"
         path = os.getcwd() + "\\"
-        val = utilities.create_schema(path, name)
-        stdout.write(Style.BRIGHT)
+        val = create_schema(path, name)
         match val:
             case 0:
-                print(f"{Fore.GREEN}Created {Fore.WHITE}{name}{Fore.GREEN} at {Fore.WHITE}{path}")
+                print(f"Created {name} at {path}")
             case 1:
-                print(f"{Fore.RED}[!] {Fore.WHITE}{name}{Fore.RED} already exists at {Fore.WHITE}{path}")
+                print(f"[!] {name} already exists at {path}")
             case -1:
-                print(f"{Fore.RED}[!] Error creating {Fore.WHITE}{name}{Fore.RED} at {Fore.WHITE}{path}")
-        stdout.write(Style.RESET_ALL)
+                print(f"[!] Error creating {name} at {path}")
                 
                 
 class Drop(Command):
@@ -51,25 +47,23 @@ class Drop(Command):
         if not name.endswith(".db"):
             name += ".db"
         # Checks user input
-        stdout.write(Style.BRIGHT)
         while True:
             confirm = input(f"Are you sure you want to drop {name}? [y/n]\n")
             if confirm:        
                 if confirm.lower()[0] == "y":
                     break
                 elif confirm.lower()[0] == "n":
-                    print(f"{Fore.RED}[!] Aborted drop")
+                    print(f"[!] Aborted drop")
                     return
         path = os.getcwd() + "\\"
-        val = utilities.drop_schema(path, name)
+        val = drop_schema(path, name)
         match val:
             case 0:
-                print(f"{Fore.GREEN}Dropped {Fore.WHITE}{name}{Fore.GREEN} at {Fore.WHITE}{path}")
+                print(f"Dropped {name} at {path}")
             case 1:
-                print(f"{Fore.RED}[!] {Fore.WHITE}{name}{Fore.RED} does not exists at {Fore.WHITE}{path}")
+                print(f"[!] {name} does not exists at {path}")
             case -1:
-                print(f"{Fore.RED}[!] Error dropping {Fore.WHITE}{name}{Fore.RED} at {Fore.WHITE}{path}")
-        stdout.write(Style.RESET_ALL)
+                print(f"[!] Error dropping {name} at {path}")
         
         
 class Stage(Command):
@@ -78,7 +72,7 @@ class Stage(Command):
         stage_subp.add_argument("schema", type=str)
         
     def run(self, args) -> None:
-        print(f'Staging changes on database: {args.schema}')
+        print('Staging changes on database: {args.schema}')
         
         
 class Tables(Command):
@@ -87,25 +81,14 @@ class Tables(Command):
         tables_subp.add_argument("schema", type=str)
         
     def run(self, args) -> None:
-        conn = sqlite3.connect(args.schema)
-        cursor = conn.cursor()
+        con = sqlite3.connect(args.schema)
+        cur = con.cursor()
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
 
-        # Query to fetch all table names
-        table = """ CREATE TABLE GEEK (
-            Email VARCHAR(255) NOT NULL,
-            First_Name CHAR(25) NOT NULL,
-            Last_Name CHAR(25),
-            Score INT
-        ); """
- 
-        cursor.execute(table)
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = cur.fetchall()
 
-        # Fetch all results
-        tables = cursor.fetchall()
-
-        # Close the connection
-        conn.close()
+        cur.close()
+        con.close()
 
         print(tables)
         

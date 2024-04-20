@@ -1,7 +1,7 @@
 from sqlite3 import Connection, Error
 from typing import Type
 
-from ..schema.model import Table, Field
+from .model import Table, Field
 
 
 class Engine:
