@@ -1,7 +1,7 @@
 import os
 import sqlite3
 
-from ..core.utilities import create_schema, drop_schema
+from .utilities import create_schema, drop_schema
 
 
 class Command:

@@ -19,7 +19,7 @@ class Engine:
         
         
         try:
-            cur.execute(f"SELECT * FROM {table.__name__.lower()} WHERE {table.get_primary_key_cls()+' = '+pk}")
+            cur.execute(f"SELECT * FROM {table.__name__.lower()} WHERE {str(table.get_primary_key_cls())+' = '+pk}")
         except Error as e:
             print(e)
         
