@@ -9,17 +9,38 @@ class Affinity(Enum):
     TEXT = (str,)
     BLOB = (bytes, bytearray, memoryview)
     REAL = (float,)
+    
+    
+class Constraint(Enum):
+    RESTRICT = "RESTRICT"
+    NO_ACTION = "NO ACTION"
+    CASCADE = "CASCADE"
+    SET_NULL = "SET NULL"
 
 
 class Field:
-    affinity = Affinity.NONE
+    affinity: Affinity = Affinity.NONE
     
-    def __init__(self, not_null=True, default=None, unique=False, primary_key=False) -> None:
+    def __init__(
+        self, not_null=True, default=None, unique=False, primary_key=False, # Regular options
+        foreign_key=None, on_update=Constraint.RESTRICT, on_delete=Constraint.RESTRICT # Foreign key options
+        ) -> None:
         self.not_null = not_null
-        self.default = default
         self.unique = unique
         self.primary_key = primary_key
-        self.value = self.default
+        self.foreign_key = foreign_key
+        self.on_update: Constraint
+        self.on_delete: Constraint
+        
+        # Set foreign key options
+        if self.foreign_key:
+            self.on_update = on_update
+            self.on_delete = on_delete
+        else:
+            self.on_update = None
+            self.on_delete = None
+        
+        self.value = default
         
     def __repr__(self):
         return str(self.value)
@@ -31,15 +52,20 @@ class Field:
         self.value = value
         
     def get_options_string(self) -> str:
-        s = ""
+        ls: List[str] = []
         if self.not_null:
-            s += "NOT NULL "
+            ls.append("NOT NULL")
         if self.unique:
-            s += "UNIQUE "
+            ls.append("UNIQUE")       
         if self.primary_key:
-            s += "PRIMARY KEY "
-        return s[:-1]
+            ls.append("PRIMARY KEY")
+        return " ".join(ls)
     
+    def get_foreign_key_options_string(self) -> str | None:
+        if self.foreign_key:
+            return f"ON UPDATE {self.on_update} ON DELETE {self.on_delete}"
+        else:
+            return None
     
 class IntegerField(Field):
     affinity = Affinity.INTEGER
@@ -55,9 +81,27 @@ class BlobField(Field):
     
 class RealField(Field):
     affinity = Affinity.REAL
-            
+    
+    
+class TableMeta(type):
+    def __new__(cls, name, bases, dct):
+        new_cls = super().__new__(cls, name, bases, dct)
         
-class Table:
+        # Add set_attr method for each attribute
+        for attr in dct:
+            if not attr.startswith('__') and not callable(dct[attr]):
+                setattr(new_cls, f'set_{attr}', cls.make_set_attr(attr))
+        
+        return new_cls
+    
+    @staticmethod
+    def make_set_attr(attr):
+        def set_attr(self, value):
+            getattr(self, attr).set_value(value)
+        return set_attr
+    
+        
+class Table(metaclass=TableMeta):
     def __init__(self, **kwargs) -> None:
         fields = self.get_fields()
         keys = list(kwargs.keys())
@@ -113,25 +157,28 @@ class Table:
                 return field
     
     @classmethod
-    def get_create_query(cls) -> tuple[str | tuple]:
+    def get_create_query(cls) -> str:
         name = cls.__name__.lower()
         
         # Iterates through each field, building a string containing its name, affinity, and options
         fields = []
+        foreign_keys = []
         for field in cls.get_fields_cls():
-            options = getattr(cls, field).get_options_string()
-            s = ""
-            for o in options:
-                s += o
-            s = f"{field} {getattr(cls, field).affinity.name} {s}"
+            attr: Field = getattr(cls, field)
+            
+            # Formats options
+            options = attr.get_options_string()
+            s = f"{field} {attr.affinity.name}"
+            if options:
+                s += " " + options
             fields.append(s)
             
-        # Removes the last element's comma
-        fields[-1] = fields[-1][:-1]
+            if attr.foreign_key:
+                fields.append(f"FOREIGN KEY ({field}) REFERENCES {attr.foreign_key.__name__.lower()}({attr.foreign_key.get_primary_key_cls()})")
         
         return f"CREATE TABLE {name} ({', '.join(fields)});"
         
-    def get_insert_query(self) -> tuple[str | tuple]:
+    def get_insert_string(self) -> str:
         name = self.__class__.__name__.lower()
         
         # Lists names of all fields whose value is not None
@@ -148,7 +195,7 @@ class Table:
                 
         return f"INSERT INTO {name} ({', '.join(fields)}) VALUES ({', '.join(values)});"
     
-    def get_update_query(self) -> tuple[str | tuple]:
+    def get_update_string(self) -> tuple[str | tuple]:
         name = self.__class__.__name__.lower()
         
         # Lists names of all fields whose value is not None
@@ -173,9 +220,3 @@ class Table:
         pk = pk + " = " + getattr(self, pk).value
                 
         return f"UPDATE {name} SET {', '.join(set_fields)} WHERE {pk};"
-    
-    def save(self, t):
-        if t.exists(self):
-            t.update(self)
-        else:
-            t.insert(self)

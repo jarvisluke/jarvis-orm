@@ -1,16 +1,27 @@
-import sqlite3
+from sqlite3 import Connection, Error
 from typing import Type
 
 from ..schema.model import Table, Field
 
 
 class Engine:
-    def __init__(self, con: sqlite3.Connection) -> None:
+    def __init__(self, con: Connection, foreign_keys=True) -> None:
         self.con = con
+        if foreign_keys:
+            cur = self.con.cursor()
+            cur.execute("PRAGMA foreign_keys = ON")
+            cur.close()
         
-    def get(self, table: Type[Table], pk: str) -> Table:
+    def get(self, table: Type[Table], pk: str | Field) -> Table:
+        if isinstance(pk, Field):
+            pk = pk.value
         cur = self.con.cursor()
-        cur.execute(f"SELECT * FROM {table.__name__.lower()} WHERE {table.get_primary_key_cls()+' = '+pk}")
+        
+        
+        try:
+            cur.execute(f"SELECT * FROM {table.__name__.lower()} WHERE {table.get_primary_key_cls()+' = '+pk}")
+        except Error as e:
+            print(e)
         
         # Create dict of keys: values
         values = cur.fetchone()
@@ -25,8 +36,11 @@ class Engine:
         
     def create(self, table: Type[Table]):
         cur = self.con.cursor()
-        print(table.get_create_query())
-        cur.execute(table.get_create_query())
+        try:
+            cur.execute(table.get_create_query())
+        except Error as e:
+            print(e)
+            
         cur.close()
         self.con.commit()
         
@@ -35,14 +49,37 @@ class Engine:
         pk = item.get_primary_key()
         name = item.__class__.__name__.lower()
         
-        # Checks if item exists
-        cur.execute(f"SELECT * FROM {name} WHERE {pk+' = '+getattr(item, pk).value};",)
-        
-        # Updates or inserts row
-        if cur.fetchone():
-            cur.execute(item.get_update_query())
-        else:
-            cur.execute(item.get_insert_query())
+        try:
+            # Checks if item exists
+            cur.execute(f"SELECT * FROM {name} WHERE {pk+' = '+getattr(item, pk).value};",)
             
+            # Updates or inserts row
+            if cur.fetchone():
+                cur.execute(item.get_update_string())
+            else:
+                cur.execute(item.get_insert_string())
+        except Error as e:
+            print(e)
+                
+        cur.close()
+        self.con.commit()
+        
+    def delete(self, item: Table) -> None:
+        cur = self.con.cursor()
+        pk = item.get_primary_key()
+        name = item.__class__.__name__.lower()
+        
+        try:
+            # Checks if item exists
+            cur.execute(f"DELETE FROM {name} WHERE {pk+' = '+getattr(item, pk).value};",)
+            
+            # Updates or inserts row
+            if cur.fetchone():
+                cur.execute(item.get_update_string())
+            else:
+                cur.execute(item.get_insert_string())
+        except Error as e:
+            print(e)
+                
         cur.close()
         self.con.commit()
