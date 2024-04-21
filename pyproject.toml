@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "jarvis-orm"
-version = "0.0.4"
+version = "0.0.5"
 requires-python = ">=3.10"
 authors = [
   {name = "Luke Jarvis", email = "jarvislukeldj@gmail.com"},
