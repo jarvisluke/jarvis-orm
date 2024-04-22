@@ -45,7 +45,13 @@ class Field:
     def __repr__(self):
         return str(self.value)
     
+    def __str__(self):
+        return str(self.value)
+    
     def set_value(self, value) -> None:
+        if self.foreign_key:
+            if t:= self.foreign_key == value.__class__:
+                value = getattr(value, value.get_primary_key()).value
         # Checks the type of the value is supported by the class's affinity
         if (t := type(value)) not in self.affinity.value:
             raise TypeError(f"Unsupported type '{t}' for affinity {self.affinity}")
@@ -144,17 +150,17 @@ class Table(metaclass=TableMeta):
                 
         return fields
     
-    def get_primary_key(self) -> str:
+    def get_primary_key(self):
         for field in self.get_fields():
             if getattr(self, field).primary_key:
-                return str(field)
+                return field
             
     @classmethod
-    def get_primary_key_cls(cls) -> str:
+    def get_primary_key_cls(cls):
         for field in cls.get_fields_cls():
             obj = getattr(cls, field)
             if isinstance(obj, Field) and obj.primary_key:
-                return str(field)
+                return field
     
     @classmethod
     def get_create_query(cls) -> str:

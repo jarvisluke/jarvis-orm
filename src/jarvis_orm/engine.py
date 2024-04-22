@@ -43,12 +43,12 @@ class Engine:
         
     def save(self, item: Table) -> None:
         cur = self.con.cursor()
-        pk = item.get_primary_key()
+        pk = str(item.get_primary_key())
         name = item.__class__.__name__.lower()
         
         try:
             # Checks if item exists
-            cur.execute(f"SELECT * FROM {name} WHERE {pk+' = '+getattr(item, pk).value};",)
+            cur.execute(f"SELECT * FROM {name} WHERE {pk+' = '+str((getattr(item, pk).value))};",)
             
             # Updates or inserts row
             if cur.fetchone():
@@ -63,12 +63,12 @@ class Engine:
         
     def delete(self, item: Table) -> None:
         cur = self.con.cursor()
-        pk = item.get_primary_key()
+        pk = str(item.get_primary_key())
         name = item.__class__.__name__.lower()
         
         try:
             # Checks if item exists
-            cur.execute(f"DELETE FROM {name} WHERE {pk+' = '+getattr(item, pk).value};",)
+            cur.execute(f"DELETE FROM {name} WHERE {pk+' = '+str(getattr(item, pk).value)};",)
             
             # Updates or inserts row
             if cur.fetchone():
