@@ -147,14 +147,14 @@ class Table(metaclass=TableMeta):
     def get_primary_key(self) -> str:
         for field in self.get_fields():
             if getattr(self, field).primary_key:
-                return field
+                return str(field)
             
     @classmethod
     def get_primary_key_cls(cls) -> str:
         for field in cls.get_fields_cls():
             obj = getattr(cls, field)
             if isinstance(obj, Field) and obj.primary_key:
-                return field
+                return str(field)
     
     @classmethod
     def get_create_query(cls) -> str:

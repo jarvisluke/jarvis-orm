@@ -13,13 +13,10 @@ class Engine:
             cur.close()
         
     def get(self, table: Type[Table], pk: str | Field) -> Table:
-        if isinstance(pk, Field):
-            pk = pk.value
         cur = self.con.cursor()
         
-        
         try:
-            cur.execute(f"SELECT * FROM {table.__name__.lower()} WHERE {str(table.get_primary_key_cls())+' = '+pk}")
+            cur.execute(f"SELECT * FROM {table.__name__.lower()} WHERE {table.get_primary_key_cls()+' = '+str(pk)}")
         except Error as e:
             print(e)
         
