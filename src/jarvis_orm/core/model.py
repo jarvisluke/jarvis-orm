@@ -1,6 +1,6 @@
 from enum import Enum
 from types import NoneType
-from typing import List
+from typing import Dict, List
 
 
 class Affinity(Enum):
@@ -109,6 +109,7 @@ class TableMeta(type):
         
 class Table(metaclass=TableMeta):
     def __init__(self, **kwargs) -> None:
+        
         fields = self.get_fields()
         keys = list(kwargs.keys())
         
@@ -122,11 +123,35 @@ class Table(metaclass=TableMeta):
             elif diff < 0:
                 raise ValueError(f"Unexpected keyword arguments {mismatch}")
         
-        # Initializes value attribute of each attribute of type Field 
+        """ # Initializes value attribute of each attribute of type Field 
         for k, v in kwargs.items():
             if k in fields:
                 attr = getattr(self, k)
-                attr.set_value(v)
+                attr.set_value(v) """
+                
+        print("field args:", self.get_field_attrs())
+                
+        # Sets value of each field to its corresponding keyword argument
+        field_attrs = self.get_field_attrs()
+        for k, v in field_attrs.items():
+            if k in kwargs:
+                
+                
+            
+                
+    @classmethod
+    def get_name(cls) -> str:
+        return cls.__name__.lower()
+    
+    def get_field_attrs(self) -> dict[str, Field]:
+        attrs = self.__class__.__dict__.items()
+        field_attrs = {}
+        
+        for k, v in attrs:
+            if isinstance(v, Field):
+                field_attrs[k] = v
+        
+        return field_attrs
     
     def get_fields(self) -> List[Field]:
         attrs = self.__class__.__dict__
@@ -164,6 +189,7 @@ class Table(metaclass=TableMeta):
     
     @classmethod
     def get_create_query(cls) -> str:
+        
         name = cls.__name__.lower()
         
         # Iterates through each field, building a string containing its name, affinity, and options

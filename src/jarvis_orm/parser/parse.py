@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from typing import Dict
 
-from .commands import Command, subprocessors
+from .parser.commands import Command, subprocessors
 
 
 class CommandParser:
