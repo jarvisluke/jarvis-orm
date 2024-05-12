@@ -1,6 +1,6 @@
 from enum import Enum
 from types import NoneType
-from typing import Dict, List
+from typing import Dict, List, Type
 
 
 class Affinity(Enum):
@@ -48,30 +48,15 @@ class Field:
     def __str__(self):
         return str(self.value)
     
-    def set_value(self, value) -> None:
+    def set(self, value) -> None:
         if self.foreign_key:
             if t:= self.foreign_key == value.__class__:
                 value = getattr(value, value.get_primary_key()).value
         # Checks the type of the value is supported by the class's affinity
         if (t := type(value)) not in self.affinity.value:
-            raise TypeError(f"Unsupported type '{t}' for affinity {self.affinity}")
+            raise TypeError(f"Unsupported type '{t.__name__}' for {self.affinity}")
         self.value = value
-        
-    def get_options_string(self) -> str:
-        ls: List[str] = []
-        if self.not_null:
-            ls.append("NOT NULL")
-        if self.unique:
-            ls.append("UNIQUE")       
-        if self.primary_key:
-            ls.append("PRIMARY KEY")
-        return " ".join(ls)
     
-    def get_foreign_key_options_string(self) -> str | None:
-        if self.foreign_key:
-            return f"ON UPDATE {self.on_update} ON DELETE {self.on_delete}"
-        else:
-            return None
     
 class IntegerField(Field):
     affinity = Affinity.INTEGER
@@ -109,83 +94,28 @@ class TableMeta(type):
         
 class Table(metaclass=TableMeta):
     def __init__(self, **kwargs) -> None:
-        
         fields = self.get_fields()
-        keys = list(kwargs.keys())
         
-        # Checks if any values in kwargs are not attributes of type Field
-        if (diff := len(fields) - len(keys)):
-            mismatch = list(set(fields) - set(keys)) + list(set(keys) - set(fields))
-            if diff > 0:
-                # Checks if all fields not filled have not_null == True
-                if not all([not getattr(self, f).not_null for f in mismatch]):
-                    raise TypeError(f"__init__() missing {diff} required not null keyword arguments: {mismatch}")
-            elif diff < 0:
-                raise ValueError(f"Unexpected keyword arguments {mismatch}")
-        
-        """ # Initializes value attribute of each attribute of type Field 
+        # Checks all 'not null' fields are in kwargs
+        for k, v in fields.items():
+            # If any 'not null' fields are not in the object instantiation
+            if k not in kwargs.keys() and v.not_null:
+                raise TypeError(f"{self.__class__.__name__}.__init__() missing keyword argument: '{k}'")
+            
+        # Initialize fields in kwargs
         for k, v in kwargs.items():
-            if k in fields:
-                attr = getattr(self, k)
-                attr.set_value(v) """
-                
-        print("field args:", self.get_field_attrs())
-                
-        # Sets value of each field to its corresponding keyword argument
-        field_attrs = self.get_field_attrs()
-        for k, v in field_attrs.items():
-            if k in kwargs:
-                
-                
-            
-                
-    @classmethod
-    def get_name(cls) -> str:
-        return cls.__name__.lower()
+            # If any keyword argument is not in fields
+            if k not in fields.keys():
+                raise TypeError(f"{self.__class__.__name__}.__init__() received unexpected keyword argument: '{k}'")
+            fields[k].set(v)
     
-    def get_field_attrs(self) -> dict[str, Field]:
-        attrs = self.__class__.__dict__.items()
-        field_attrs = {}
-        
-        for k, v in attrs:
-            if isinstance(v, Field):
-                field_attrs[k] = v
-        
-        return field_attrs
+    # Returns dict of name and object of all Field attributes
+    def get_fields(self) -> Dict[str, Field]:
+        return {k: v for k, v in self.__class__.__dict__.items() if isinstance(v, Field)}
     
-    def get_fields(self) -> List[Field]:
-        attrs = self.__class__.__dict__
-        fields = []
-        
-        # Returns names of all attributes of type Field
-        for k, v in attrs.items():
-            if isinstance(v, Field):
-                fields.append(k)
-                
-        return fields
-    
-    @classmethod
-    def get_fields_cls(cls) -> List[Field]:
-        attrs = cls.__dict__
-        fields = []
-        
-        for k, v in attrs.items():
-            if isinstance(v, Field):
-                fields.append(k)
-                
-        return fields
-    
-    def get_primary_key(self):
-        for field in self.get_fields():
-            if getattr(self, field).primary_key:
-                return field
-            
-    @classmethod
-    def get_primary_key_cls(cls):
-        for field in cls.get_fields_cls():
-            obj = getattr(cls, field)
-            if isinstance(obj, Field) and obj.primary_key:
-                return field
+    # Returns dict of the name and object of the primary key Field
+    def get_primary_key(self) -> Dict[str, Field]:
+        return {k: v for k, v in self.__class__.__dict__.items() if isinstance(v, Field) and v.primary_key}
     
     @classmethod
     def get_create_query(cls) -> str:

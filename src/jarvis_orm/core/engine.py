@@ -1,45 +1,33 @@
-from sqlite3 import Connection, Error
-from typing import Type
+from sqlite3 import Error
+import sqlite3
 
-from .model import Table, Field
+from .adapter import SQLiteAdapter
+from .model import Table
+from .util import get_fields
 
 
 class Engine:
-    def __init__(self, con: Connection, foreign_keys=True) -> None:
-        self.con = con
-        if foreign_keys:
-            cur = self.con.cursor()
-            cur.execute("PRAGMA foreign_keys = ON")
-            cur.close()
+    def __init__(self, con) -> None:
+        self.db = None
+        # Match connection to database
+        match con.__class__:
+            # sqlite
+            case sqlite3.Connection:
+                self.db = SQLiteAdapter(con)
         
-    def get(self, table: Type[Table], pk: str | Field) -> Table:
-        cur = self.con.cursor()
+    def create(self, table: type[Table]):
+        self.db.create_table(table)
         
-        try:
-            cur.execute(f"SELECT * FROM {table.__name__.lower()} WHERE {table.get_primary_key_cls()+' = '+str(pk)}")
-        except Error as e:
-            print(e)
+    def delete(self, table: type[Table]):
+        self.db.drop_table(table)
         
-        # Create dict of keys: values
-        values = cur.fetchone()
-        keys = tuple(table.get_fields_cls())
+    def get(self, table: type[Table], pk) -> Table:
+        values = self.db.fetch(table, pk)
+        keys = tuple(get_fields(table))
         kwargs = {keys[i]: values[i] for i in range(len(keys))}
         
         # Create new table object
-        obj = table(**kwargs)
-        
-        cur.close()
-        return obj
-        
-    def create(self, table: Type[Table]):
-        cur = self.con.cursor()
-        try:
-            cur.execute(table.get_create_query())
-        except Error as e:
-            print(e)
-            
-        cur.close()
-        self.con.commit()
+        return table(**kwargs)
         
     def save(self, item: Table) -> None:
         cur = self.con.cursor()

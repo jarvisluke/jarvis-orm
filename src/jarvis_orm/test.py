@@ -1,5 +1,4 @@
-from core.model import Table
-from core.model import IntegerField, TextField
+from core.model import *
 
 
 class Person(Table):
@@ -7,3 +6,6 @@ class Person(Table):
     name = TextField(unique=True)
 
 luke = Person(id="100", name="Luke")
+
+pk = luke.get_primary_key()
+print(get_name(Person))
