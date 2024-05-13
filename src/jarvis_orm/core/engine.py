@@ -22,49 +22,20 @@ class Engine:
         self.db.drop_table(table)
         
     def get(self, table: type[Table], pk) -> Table:
-        values = self.db.fetch(table, pk)
-        keys = tuple(get_fields(table))
-        kwargs = {keys[i]: values[i] for i in range(len(keys))}
-        
-        # Create new table object
-        return table(**kwargs)
+        values = self.db.select(table, pk)
+        # If table with pk in exists
+        if values:
+            keys = tuple(get_fields(table))
+            kwargs = {keys[i]: values[i] for i in range(len(keys))}
+            # Return a new table object
+            return table(**kwargs)
+        else:
+            return None
         
     def save(self, item: Table) -> None:
-        cur = self.con.cursor()
-        pk = str(item.get_primary_key())
-        name = item.__class__.__name__.lower()
-        
-        try:
-            # Checks if item exists
-            cur.execute(f"SELECT * FROM {name} WHERE {pk+' = '+str((getattr(item, pk).value))};",)
-            
-            # Updates or inserts row
-            if cur.fetchone():
-                cur.execute(item.get_update_string())
-            else:
-                cur.execute(item.get_insert_string())
-        except Error as e:
-            print(e)
-                
-        cur.close()
-        self.con.commit()
-        
-    def delete(self, item: Table) -> None:
-        cur = self.con.cursor()
-        pk = str(item.get_primary_key())
-        name = item.__class__.__name__.lower()
-        
-        try:
-            # Checks if item exists
-            cur.execute(f"DELETE FROM {name} WHERE {pk+' = '+str(getattr(item, pk).value)};",)
-            
-            # Updates or inserts row
-            if cur.fetchone():
-                cur.execute(item.get_update_string())
-            else:
-                cur.execute(item.get_insert_string())
-        except Error as e:
-            print(e)
-                
-        cur.close()
-        self.con.commit()
+        # Update item if it already exists
+        if self.get(item.__class__, next(iter(item.get_primary_key().values()))):
+            self.db.update(item)
+        # Insert item if it does not exist
+        else:
+            self.db.insert(item)

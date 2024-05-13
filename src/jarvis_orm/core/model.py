@@ -42,9 +42,6 @@ class Field:
         
         self.value = default
         
-    def __repr__(self):
-        return str(self.value)
-    
     def __str__(self):
         return str(self.value)
     
@@ -65,10 +62,12 @@ class IntegerField(Field):
 class TextField(Field):
     affinity = Affinity.TEXT
 
-    
+"""
+NOT YET IMPLEMENTED
+
 class BlobField(Field):
     affinity = Affinity.BLOB
-    
+ """    
     
 class RealField(Field):
     affinity = Affinity.REAL

@@ -1,9 +1,9 @@
-from model import Field, Table
+from .model import Field, Table
 
 
 # Returns name of Table in database
 def get_name(table: type[Table]) -> str:
-    return table.__name__.lower()
+    return table.__name__.lower() 
 
 # Returns a list of names of Field object attributes of a class
 def get_fields(table: type[Table]) -> dict[str, Field]:
