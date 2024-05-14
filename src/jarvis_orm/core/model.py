@@ -1,6 +1,7 @@
 from enum import Enum
 from types import NoneType
-from typing import Dict, List, Type
+
+from .util import get_primary_key
 
 
 class Affinity(Enum):
@@ -45,12 +46,30 @@ class Field:
     def __str__(self):
         return str(self.value)
     
-    def set(self, value) -> None:
+    def get_options(self) -> list[str]:
+        options = []
+        if self.not_null:
+            options.append("not_null")
+        if self.unique:
+            options.append("unique")
+        if self.primary_key:
+            options.append("primary_key")
         if self.foreign_key:
-            if t:= self.foreign_key == value.__class__:
-                value = getattr(value, value.get_primary_key()).value
+            options.append("foreign_key")
+            if self.on_update:
+                options.append("on_update")
+            if self.on_delete:
+                options.append("on_delete")
+        return options
+    
+    def set(self, value) -> None:
+        # TODO: fix it
+            
+        if isinstance(value, Table):
+            value = next(iter(value.get_primary_key()))
+                
         # Checks the type of the value is supported by the class's affinity
-        if (t := type(value)) not in self.affinity.value:
+        elif (t := value.__class__) not in self.affinity.value:
             raise TypeError(f"Unsupported type '{t.__name__}' for {self.affinity}")
         self.value = value
     
@@ -109,11 +128,11 @@ class Table(metaclass=TableMeta):
             fields[k].set(v)
     
     # Returns dict of name and object of all Field attributes
-    def get_fields(self) -> Dict[str, Field]:
+    def get_fields(self) -> dict[str, Field]:
         return {k: v for k, v in self.__class__.__dict__.items() if isinstance(v, Field)}
     
     # Returns dict of the name and object of the primary key Field
-    def get_primary_key(self) -> Dict[str, Field]:
+    def get_primary_key(self) -> dict[str, Field]:
         return {k: v for k, v in self.__class__.__dict__.items() if isinstance(v, Field) and v.primary_key}
     
     @classmethod

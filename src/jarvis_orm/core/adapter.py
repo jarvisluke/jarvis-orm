@@ -1,6 +1,6 @@
 import sqlite3
 
-from .model import Table
+from .model import Affinity, Table
 from .util import get_name, get_fields, get_primary_key
 
 '''
@@ -39,8 +39,40 @@ class SQLiteAdapter:
     # DDL methods
     
     def create_table(self, table: type[Table]) -> None:
-        keys = get_fields(table).keys()
-        self._execute(f"CREATE TABLE {get_name(table)} ({', '.join(keys)})")
+        fields = []
+        for k, v in get_fields(table).items():
+            options = v.get_options()
+            format = k
+            
+            # Adds affinity
+            match v.affinity:
+                case Affinity.TEXT:
+                    format += " TEXT"
+                case Affinity.INTEGER:
+                    format += " INTEGER"
+                case Affinity.REAL:
+                    format += " REAL"
+                case Affinity.BLOB:
+                    format += " BLOB"
+                    
+            # Adds options
+            if "not_null" in options:
+                format += " NOT NULL"
+            if "unique" in options:
+                format += " UNIQUE"
+            if "primary_key" in options:
+                format += " PRIMARY KEY"
+            fields.append(format)
+            
+            # Adds foreign key statement
+            if "foreign_key" in options:
+                format = f"FOREIGN KEY ({k}) REFERENCES {get_name(v.foreign_key)} ({next(iter(get_primary_key(v.foreign_key)))})"
+                format += " ON UPDATE " + v.on_update
+                format += " ON DELETE " + v.on_delete
+                fields.append(format)
+                
+        print(f"CREATE TABLE {get_name(table)} ({', '.join(fields)})")
+        #self._execute(f"CREATE TABLE {get_name(table)} ({', '.join(fields)})")
         
     def drop_table(self, table: type[Table]) -> None:
         self._execute(f"DROP TABLE {get_name(table)}")

@@ -6,12 +6,19 @@ from core.engine import Engine
 con = Connection("test.db")
 orm = Engine(con)
 
-# Define our model
-class Person(Table):
+# Define our models
+class Company(Table):
     id = TextField(primary_key=True)
     name = TextField(unique=True)
 
-# Build our objects
-luke = Person(id="100", name="Luke")
 
-orm.save(luke)
+class Person(Table):
+    id = TextField(primary_key=True)
+    name = TextField(unique=True)
+    company = TextField(foreign_key=Company)
+
+# Build our objects
+dev = Company(id="300", name="Dev Co")
+luke = Person(id="100", name="Luke", company=dev)
+
+orm.create(Person)
