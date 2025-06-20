@@ -11,7 +11,7 @@ class Affinity(Enum):
     BLOB = (bytes, bytearray, memoryview)
     REAL = (float,)
     
-    
+
 class Constraint(Enum):
     RESTRICT = "RESTRICT"
     NO_ACTION = "NO ACTION"
@@ -62,6 +62,17 @@ class Field:
                 options.append("on_delete")
         return options
     
+    def get_options_string(self) -> str:
+        """Return SQL options string for field definition"""
+        options = []
+        if self.not_null:
+            options.append("NOT NULL")
+        if self.unique:
+            options.append("UNIQUE")
+        if self.primary_key:
+            options.append("PRIMARY KEY")
+        return " ".join(options)
+    
     def set(self, value) -> None:
         # TODO: fix it
             
@@ -91,7 +102,7 @@ class BlobField(Field):
 class RealField(Field):
     affinity = Affinity.REAL
     
-    
+
 class TableMeta(type):
     def __new__(cls, name, bases, dct):
         new_cls = super().__new__(cls, name, bases, dct)
@@ -136,15 +147,39 @@ class Table(metaclass=TableMeta):
         return {k: v for k, v in self.__class__.__dict__.items() if isinstance(v, Field) and v.primary_key}
     
     @classmethod
+    def get_fields_cls(cls) -> list[str]:
+        """Return list of field names for the class"""
+        return [k for k, v in cls.__dict__.items() if isinstance(v, Field)]
+    
+    @classmethod
+    def get_primary_key_cls(cls) -> str:
+        """Return the name of the primary key field"""
+        for k, v in cls.__dict__.items():
+            if isinstance(v, Field) and v.primary_key:
+                return k
+        return None
+    
+    @classmethod
     def get_create_query(cls) -> str:
-        
+        """
+        Generate CREATE TABLE query using proper SQL construction.
+        Note: This method is kept for backward compatibility but should use
+        parameterized queries where possible in actual database operations.
+        """
         name = cls.__name__.lower()
+        
+        # Validate table name to prevent injection
+        if not name.replace('_', '').isalnum():
+            raise ValueError("Invalid table name")
         
         # Iterates through each field, building a string containing its name, affinity, and options
         fields = []
-        foreign_keys = []
         for field in cls.get_fields_cls():
             attr: Field = getattr(cls, field)
+            
+            # Validate field name
+            if not field.replace('_', '').isalnum():
+                raise ValueError(f"Invalid field name: {field}")
             
             # Formats options
             options = attr.get_options_string()
@@ -154,11 +189,87 @@ class Table(metaclass=TableMeta):
             fields.append(s)
             
             if attr.foreign_key:
-                fields.append(f"FOREIGN KEY ({field}) REFERENCES {attr.foreign_key.__name__.lower()}({attr.foreign_key.get_primary_key_cls()})")
+                fk_table_name = attr.foreign_key.__name__.lower()
+                fk_pk_field = attr.foreign_key.get_primary_key_cls()
+                
+                # Validate foreign key table and field names
+                if not fk_table_name.replace('_', '').isalnum():
+                    raise ValueError(f"Invalid foreign key table name: {fk_table_name}")
+                if not fk_pk_field.replace('_', '').isalnum():
+                    raise ValueError(f"Invalid foreign key field name: {fk_pk_field}")
+                
+                fields.append(f"FOREIGN KEY ({field}) REFERENCES {fk_table_name}({fk_pk_field})")
         
         return f"CREATE TABLE {name} ({', '.join(fields)});"
         
+    def get_insert_params(self) -> tuple[str, tuple]:
+        """
+        Generate INSERT query with parameterized values.
+        Returns: (query_string, parameter_tuple)
+        """
+        name = self.__class__.__name__.lower()
+        
+        # Validate table name
+        if not name.replace('_', '').isalnum():
+            raise ValueError("Invalid table name")
+        
+        # Get fields that have values
+        fields_with_values = []
+        values = []
+        
+        for field_name, field_obj in self.get_fields().items():
+            if field_obj.value is not None:
+                fields_with_values.append(field_name)
+                values.append(field_obj.value)
+        
+        # Build parameterized query
+        placeholders = ', '.join(['?'] * len(values))
+        query = f"INSERT INTO {name} ({', '.join(fields_with_values)}) VALUES ({placeholders})"
+        
+        return query, tuple(values)
+    
+    def get_update_params(self) -> tuple[str, tuple]:
+        """
+        Generate UPDATE query with parameterized values.
+        Returns: (query_string, parameter_tuple)
+        """
+        name = self.__class__.__name__.lower()
+        
+        # Validate table name
+        if not name.replace('_', '').isalnum():
+            raise ValueError("Invalid table name")
+        
+        # Get fields that have values
+        fields_with_values = []
+        values = []
+        
+        for field_name, field_obj in self.get_fields().items():
+            if field_obj.value is not None:
+                fields_with_values.append(field_name)
+                values.append(field_obj.value)
+        
+        # Get primary key
+        pk_dict = self.get_primary_key()
+        pk_name = next(iter(pk_dict.keys()))
+        pk_value = next(iter(pk_dict.values()))
+        
+        # Build SET clauses with placeholders
+        set_clauses = ', '.join([f"{field} = ?" for field in fields_with_values])
+        
+        # Build complete query
+        query = f"UPDATE {name} SET {set_clauses} WHERE {pk_name} = ?"
+        
+        # Add primary key value to parameters
+        values.append(pk_value)
+        
+        return query, tuple(values)
+
+    # Legacy methods - kept for backward compatibility but not recommended for use
     def get_insert_string(self) -> str:
+        """
+        DEPRECATED: This method uses string formatting and may be vulnerable to injection.
+        Use get_insert_params() instead for secure parameterized queries.
+        """
         name = self.__class__.__name__.lower()
         
         # Lists names of all fields whose value is not None
@@ -175,7 +286,11 @@ class Table(metaclass=TableMeta):
                 
         return f"INSERT INTO {name} ({', '.join(fields)}) VALUES ({', '.join(values)});"
     
-    def get_update_string(self) -> tuple[str | tuple]:
+    def get_update_string(self) -> str:
+        """
+        DEPRECATED: This method uses string formatting and may be vulnerable to injection.
+        Use get_update_params() instead for secure parameterized queries.
+        """
         name = self.__class__.__name__.lower()
         
         # Lists names of all fields whose value is not None
@@ -197,6 +312,7 @@ class Table(metaclass=TableMeta):
             
         # Build pk = pk statement
         pk = self.get_primary_key()
-        pk = pk + " = " + getattr(self, pk).value
+        pk_name = next(iter(pk.keys()))
+        pk_value = getattr(self, pk_name).value
                 
-        return f"UPDATE {name} SET {', '.join(set_fields)} WHERE {pk};"
+        return f"UPDATE {name} SET {', '.join(set_fields)} WHERE {pk_name} = {pk_value};"
