@@ -1,7 +1,14 @@
 from sqlite3 import Error
 import sqlite3
 
-from .adapter import SQLiteAdapter
+try:
+    import psycopg2
+    import psycopg2.extensions
+except ImportError:
+    psycopg2 = None
+
+from .adapter import SQLiteAdapter, PostgreSQLAdapter
+from .exceptions import UnsupportedDatabase
 from .model import Table
 from .util import get_fields
 
@@ -9,11 +16,23 @@ from .util import get_fields
 class Engine:
     def __init__(self, con) -> None:
         self.db = None
+        
         # Match connection to database
-        match con.__class__:
-            # sqlite
-            case sqlite3.Connection:
-                self.db = SQLiteAdapter(con)
+        if isinstance(con, sqlite3.Connection):
+            self.db = SQLiteAdapter(con)
+        elif psycopg2 and isinstance(con, psycopg2.extensions.connection):
+            self.db = PostgreSQLAdapter(con)
+        else:
+            # Determine connection type for error message
+            con_type = type(con).__name__
+            supported = ["sqlite3.Connection"]
+            if psycopg2:
+                supported.append("psycopg2.extensions.connection")
+            
+            raise UnsupportedDatabase(
+                f"Unsupported database connection type: {con_type}. "
+                f"Supported types are: {', '.join(supported)}"
+            )
         
     def create(self, table: type[Table]):
         self.db.create_table(table)
