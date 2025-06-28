@@ -1,4 +1,8 @@
 import sqlite3
+import logging
+from abc import ABC, abstractmethod
+from typing import Any, Optional
+
 try:
     import psycopg2
 except ImportError:
@@ -7,36 +11,84 @@ except ImportError:
 from .model import Affinity, Table
 from .util import get_name, get_fields, get_primary_key
 
-'''
-All adapters must be "duck-typed", i.e.: they must all have the same signature for each DDL and DML method
 
-sqlite3 is part of the Python standard libraries, all other adapters require an optional connector dependency
-'''
-
-class SQLiteAdapter:
-    def __init__(self, con: sqlite3.Connection) -> None:
+class BaseAdapter(ABC):
+    """Base class for database adapters with shared functionality"""
+    
+    def __init__(self, con, logger: Optional[logging.Logger] = None):
         self.con = con
+        self.logger = logger
+    
+    def _execute(self, query: str, params: tuple = ()) -> None:
+        """Execute a query with transaction handling and logging"""
+        if self.logger is not None:
+            self.logger.info(f"Executing query: {query} with params: {params}")
+        
+        try:
+            cur = self.con.cursor()
+            cur.execute(query, params)
+            cur.close()
+            self.con.commit()
+        except Exception as e:
+            self.con.rollback()
+            if self.logger is not None:
+                self.logger.error(f"Error executing query '{query}' with params {params}: {str(e)}")
+            raise
+        
+    def _fetch(self, query: str, params: tuple = ()) -> tuple | None:
+        """Fetch a single result with logging"""
+        if self.logger is not None:
+            self.logger.info(f"Fetching query: {query} with params: {params}")
+        
+        try:
+            cur = self.con.cursor()
+            cur.execute(query, params)
+            result = cur.fetchone()
+            cur.close()
+            if self.logger is not None:
+                self.logger.debug(f"Fetch result: {result}")
+            return result
+        except Exception as e:
+            if self.logger is not None:
+                self.logger.error(f"Error fetching query '{query}' with params {params}: {str(e)}")
+            raise
+    
+    def _format_value(self, field) -> Any:
+        """Return the raw value instead of formatting as string"""
+        return field.value
+    
+    # Abstract methods that must be implemented by subclasses
+    @abstractmethod
+    def create_table(self, table: type[Table]) -> None:
+        pass
+    
+    @abstractmethod
+    def drop_table(self, table: type[Table]) -> None:
+        pass
+    
+    @abstractmethod
+    def insert(self, item: Table) -> None:
+        pass
+    
+    @abstractmethod
+    def update(self, item: Table) -> None:
+        pass
+    
+    @abstractmethod
+    def delete(self, table: type[Table], pk) -> None:
+        pass
+    
+    @abstractmethod
+    def select(self, table: type[Table], pk) -> tuple | None:
+        pass
+
+
+class SQLiteAdapter(BaseAdapter):
+    def __init__(self, con: sqlite3.Connection, logger: Optional[logging.Logger] = None) -> None:
+        super().__init__(con, logger)
         cur = con.cursor()
         cur.execute("PRAGMA foreign_keys = ON")
         cur.close()
-        
-    # Wrapper methods
-        
-    def _execute(self, query: str, params: tuple = ()) -> None:
-        cur = self.con.cursor()
-        cur.execute(query, params)
-        cur.close()
-        
-    def _fetch(self, query: str, params: tuple = ()) -> tuple | None:
-        cur = self.con.cursor()
-        cur.execute(query, params)
-        result = cur.fetchone()
-        cur.close()
-        return result
-    
-    def _format_value(self, field) -> any:
-        """Return the raw value instead of formatting as string"""
-        return field.value
     
     # DDL methods
     
@@ -99,7 +151,6 @@ class SQLiteAdapter:
         query = f"INSERT INTO {table_name} ({', '.join(field_names)}) VALUES ({placeholders})"
         
         self._execute(query, tuple(field_values))
-        self.con.commit()
     
     def update(self, item: Table) -> None:
         # Get fields and primary key
@@ -122,14 +173,12 @@ class SQLiteAdapter:
         # Combine field values and primary key value for parameters
         params = tuple(field_values + [pk_value])
         self._execute(query, params)
-        self.con.commit()
     
     def delete(self, table: type[Table], pk) -> None:
         key = next(iter(get_primary_key(table).keys()))
         table_name = get_name(table)
         query = f"DELETE FROM {table_name} WHERE {key} = ?"
         self._execute(query, (pk,))
-        self.con.commit()
     
     def select(self, table: type[Table], pk) -> tuple | None:
         key = next(iter(get_primary_key(table).keys()))
@@ -177,29 +226,11 @@ class SQLiteAdapter:
         return f"CREATE TABLE {get_name(table)} ({', '.join(fields)})"
 
 
-class PostgreSQLAdapter:
-    def __init__(self, con) -> None:
+class PostgreSQLAdapter(BaseAdapter):
+    def __init__(self, con, logger: Optional[logging.Logger] = None) -> None:
         if psycopg2 is None:
             raise ImportError("psycopg2 is required for PostgreSQL support. Install it with: pip install psycopg2")
-        self.con = con
-        
-    # Wrapper methods
-        
-    def _execute(self, query: str, params: tuple = ()) -> None:
-        cur = self.con.cursor()
-        cur.execute(query, params)
-        cur.close()
-        
-    def _fetch(self, query: str, params: tuple = ()) -> tuple | None:
-        cur = self.con.cursor()
-        cur.execute(query, params)
-        result = cur.fetchone()
-        cur.close()
-        return result
-    
-    def _format_value(self, field) -> any:
-        """Return the raw value instead of formatting as string"""
-        return field.value
+        super().__init__(con, logger)
     
     # DDL methods
     
@@ -244,7 +275,6 @@ class PostgreSQLAdapter:
                 
         query = f"CREATE TABLE IF NOT EXISTS {get_name(table)} ({', '.join(fields)})"
         self._execute(query)
-        self.con.commit()
         
     def drop_table(self, table: type[Table]) -> None:
         # Validate the table name first
@@ -253,7 +283,6 @@ class PostgreSQLAdapter:
             raise ValueError("Invalid table name")
         query = f"DROP TABLE IF EXISTS {table_name} CASCADE"  # CASCADE to drop dependent objects
         self._execute(query)
-        self.con.commit()
         
     # DML methods
     
@@ -269,7 +298,6 @@ class PostgreSQLAdapter:
         query = f"INSERT INTO {table_name} ({', '.join(field_names)}) VALUES ({placeholders})"
         
         self._execute(query, tuple(field_values))
-        self.con.commit()
     
     def update(self, item: Table) -> None:
         # Get fields and primary key
@@ -292,14 +320,12 @@ class PostgreSQLAdapter:
         # Combine field values and primary key value for parameters
         params = tuple(field_values + [pk_value])
         self._execute(query, params)
-        self.con.commit()
     
     def delete(self, table: type[Table], pk) -> None:
         key = next(iter(get_primary_key(table).keys()))
         table_name = get_name(table)
         query = f"DELETE FROM {table_name} WHERE {key} = %s"  # PostgreSQL uses %s
         self._execute(query, (pk,))
-        self.con.commit()
     
     def select(self, table: type[Table], pk) -> tuple | None:
         key = next(iter(get_primary_key(table).keys()))
@@ -345,7 +371,7 @@ class PostgreSQLAdapter:
             if "foreign_key" in options:
                 pk_field = next(iter(get_primary_key(v.foreign_key)))
                 fk_format = f"FOREIGN KEY ({k}) REFERENCES {get_name(v.foreign_key)} ({pk_field})"
-                fk_format += " ON UPDATE " + v.on_update.value
+                fk_format +=  " ON UPDATE " + v.on_update.value
                 fk_format += " ON DELETE " + v.on_delete.value
                 fields.append(fk_format)
                 
